@@ -1,64 +1,55 @@
 # File specifically for data extraction 
-
 import requests
-import os
 import pandas as pd
-from dotenv import load_dotenv
+from config import API_KEY, BASE_URL, INDICATORS, START_DATE
 
-load_dotenv()
-
-# Get API key from environment
-API_KEY = os.getenv('FRED_API_KEY')
-BASE_URL = 'https://api.stlouisfed.org/fred'
-
-def get_fred_series(series_id, observation_start=None):
+def get_fred_data(series_id, start_date=START_DATE):
     """
-    Fetch data series from FRED API
+    Get economic data from FRED API
     
-    Parameters:
-    series_id (str): FRED series identifier
-    observation_start (str): Start date in YYYY-MM-DD format
+    Example:
+    >>> unemployment_data = get_fred_data('UNRATE', '2000-01-01')
+    
+    Args:
+        series_id: FRED series code (like 'UNRATE' for unemployment)
+        start_date: Start date for data (YYYY-MM-DD format)
     
     Returns:
-    pandas.DataFrame: Time series data
+        Time series of values with dates as index
     """
-    # Build API URL
+    # Set up API call
     url = f"{BASE_URL}/series/observations"
-    
     params = {
         'series_id': series_id,
         'api_key': API_KEY,
         'file_type': 'json',
-        'observation_start': observation_start if observation_start else '1976-01-01'
+        'observation_start': start_date
     }
     
-    # Make API request
-    response = requests.get(url, params=params)
-    data = response.json()
+    try:
+        # Get data from FRED
+        response = requests.get(url, params=params)
+        response.raise_for_status()  
+        data = response.json()
+        
+        # Convert to pandas series with date index
+        df = pd.DataFrame(data['observations'])
+        df['date'] = pd.to_datetime(df['date'])
+        df['value'] = pd.to_numeric(df['value'], errors='coerce')
+        
+        return df.set_index('date')['value']
     
-    # Convert to DataFrame
-    df = pd.DataFrame(data['observations'])
-    df['date'] = pd.to_datetime(df['date'])
-    df['value'] = pd.to_numeric(df['value'], errors='coerce')
+    except requests.exceptions.RequestException as e:
+        print(f"Couldn't get data for {series_id}. Error: {e}")
+        return pd.Series()
     
-    return df.set_index('date')['value'] #set date index so pandas automatically knows the date (i.e. resampling)
-
 def fred_load():
-     # Get various indicators 
-    yield_spread = get_fred_series('T10Y2Y')
-    gdp = get_fred_series('GDPC1')
-    fed_funds = get_fred_series('DFF')
-    unemployment = get_fred_series('UNRATE')
-    option_adjusted_spread = get_fred_series('BAMLH0A0HYM2')
-    delinquency_rate_credit = get_fred_series('DRCCLACBS')
-    delinquency_rate_loans = get_fred_series('DRBLACBS')
-        # Create main dataframe
-    return pd.DataFrame({
-            'yield_spread': yield_spread,
-            'gdp': gdp,
-            'fed_funds':fed_funds, 
-            'unemployment': unemployment,
-            'option_adjusted_spread': option_adjusted_spread,
-            'delinquency_rate_credit_cards': delinquency_rate_credit,
-            'delinquency_rate_loans': delinquency_rate_loans
-        })
+    """
+    Get all economic indicators in one DataFrame
+    """
+    # Load each indicator using config
+    data = {}
+    for name, info in INDICATORS.items():
+        data[name] = get_fred_data(info['id'])
+
+    return pd.DataFrame(data)

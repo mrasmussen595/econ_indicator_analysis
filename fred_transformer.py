@@ -1,6 +1,7 @@
 # Third Cell - Data Transformation
 import pandas as pd
 import numpy as np
+from config import PERIODS
 
 def fred_transform(df):
     # GDP calculation
@@ -43,6 +44,7 @@ def fred_transform(df):
     return df
 
 def classify_periods(df):
+    #Label economic periods from config.py file
     """
     SQL Equivalent: 
     SELECT *,
@@ -54,18 +56,14 @@ def classify_periods(df):
         END AS period
     FROM fred_data 
     """
-    periods = []
-    for date in df.index:
-        if '2001-01-01' <= str(date) <= '2001-12-31':
-            periods.append('Dot Com')
-        elif '2007-10-01' <= str(date) <= '2009-06-30':
-            periods.append('Great Recession')
-        elif '2020-01-01' <= str(date) <= '2020-06-30':
-            periods.append('COVID')
-        else:
-            periods.append('Expansion')
-            
-    return periods
+    def get_period(date):
+        date_str = date.strftime('%Y-%m-%d')
+        for period_name, (start, end) in PERIODS.items():
+            if start <= date_str <= end:
+                return period_name
+        return 'Expansion'
+    
+    return df.index.map(get_period)
 
 def fill_missing_values(df):
         # Fill down credit card delinquency data + loan delinquency data (only available quarterly) and spreads (averaging)
