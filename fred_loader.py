@@ -43,21 +43,22 @@ def get_fred_series(series_id, observation_start=None):
     
     return df.set_index('date')['value'] #set date index so pandas automatically knows the date (i.e. resampling)
 
-# Get various indicators 
-yield_spread = get_fred_series('T10Y2Y')
-gdp = get_fred_series('GDPC1')
-fed_funds = get_fred_series('DFF')
-unemployment = get_fred_series('UNRATE')
-option_adjusted_spread = get_fred_series('BAMLH0A0HYM2')
-delinquency_rate_credit = get_fred_series('DRCCLACBS')
-delinquency_rate_loans = get_fred_series('DRBLACBS')
-# Create main dataframe
-df = pd.DataFrame({
-    'yield_spread': yield_spread,
-    'gdp': gdp,
-    'fed_funds':fed_funds, 
-    'unemployment': unemployment,
-    'option_adjusted_spread': option_adjusted_spread,
-    'delinquency_rate_credit_cards': delinquency_rate_credit,
-    'delinquency_rate_loans': delinquency_rate_loans
-})
+def fred_load():
+     # Get various indicators 
+    yield_spread = get_fred_series('T10Y2Y')
+    gdp = get_fred_series('GDPC1')
+    fed_funds = get_fred_series('DFF')
+    unemployment = get_fred_series('UNRATE')
+    option_adjusted_spread = get_fred_series('BAMLH0A0HYM2')
+    delinquency_rate_credit = get_fred_series('DRCCLACBS')
+    delinquency_rate_loans = get_fred_series('DRBLACBS')
+        # Create main dataframe
+    return pd.DataFrame({
+            'yield_spread': yield_spread,
+            'gdp': gdp,
+            'fed_funds':fed_funds, 
+            'unemployment': unemployment,
+            'option_adjusted_spread': option_adjusted_spread,
+            'delinquency_rate_credit_cards': delinquency_rate_credit,
+            'delinquency_rate_loans': delinquency_rate_loans
+        })
