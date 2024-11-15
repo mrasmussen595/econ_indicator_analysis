@@ -40,11 +40,23 @@ INDICATORS = {
        'name': 'Credit Card Delinquency Rate',
        'description': 'Delinquency Rate on Credit Card Loans'
    },
+   
    'delinquency_rate_loans': {
        'id': 'DRBLACBS',
        'name': 'Business Loan Delinquency Rate',
        'description': 'Delinquency Rate on Business Loans'
+   },
+    'cpi': {
+       'id': 'CPIAUCSL',
+       'name': 'Consumer Price Index',
+       'description': 'Measures average change in prices paid by consumers. Main inflation indicator.'
+   },
+        'pce': {
+       'id': 'PCEPI',
+       'name': 'PCE Price Index',
+       'description': 'Federal Reserve\'s preferred inflation measure. Tracks personal consumption costs.'
    }
+   
 }
 
 # Important economic periods to highlight

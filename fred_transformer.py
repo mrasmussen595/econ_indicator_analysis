@@ -1,7 +1,9 @@
 # Third Cell - Data Transformation
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from config import PERIODS
+
 
 def fred_transform(df):
     # GDP calculation
@@ -28,7 +30,9 @@ def fred_transform(df):
         ) as next_quarter_delinquency
     FROM fred_data
     """
-    df['next_quarter_delinquency'] =  df['delinquency_rate_loans'].shift(-90)
+
+    next_quarter = df.groupby(df.index.to_period('Q'))['delinquency_rate_loans'].last().shift(-1)
+    df['next_quarter_delinquency'] = df.index.to_period('Q').map(next_quarter)
 
     # Call fill missing value function below
     df = fill_missing_values(df)
@@ -85,10 +89,12 @@ def fill_missing_values(df):
                 LAG(quarterly_spreads) OVER (ORDER BY date)
             ) AS quarterly_spreads, 
         FROM fred_data ) 
+    I'd join back on this cte by date in the main table. 
     """
     columns_to_fill = [
         'delinquency_rate_credit_cards',
         'delinquency_rate_loans',
+        'next_quarter_delinquency',
         'quarterly_spread' ]
     
     df[columns_to_fill] = df[columns_to_fill].ffill()
