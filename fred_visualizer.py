@@ -1,7 +1,6 @@
 # visualizations.py
 import pandas as pd
 import plotly.express as px
-from scipy import stats
 
 
 def prepare_viz_data(df, start_date='1996-12-31'):
@@ -10,18 +9,18 @@ def prepare_viz_data(df, start_date='1996-12-31'):
     """
     # Convert start_date to datetime
     start_date = pd.to_datetime(start_date)
-    
+
     # Since date is the index, filter using the index directly
     df_viz = df[df.index >= start_date].copy()
     # Filter for necessary columns
     df_viz = df_viz[[
-        'quarter', 
-        'period', 
-        'quarterly_spread', 
+        'quarter',
+        'period',
+        'quarterly_spread',
         'next_quarter_delinquency',
         'delinquency_rate_loans'
     ]].drop_duplicates()
-    
+
     return df_viz
 def fred_visualize(df):
     # Prepare data
@@ -29,19 +28,19 @@ def fred_visualize(df):
 
     print("Data prepared. Shape:", df_viz.shape)
     print("Columns after preparation:", df_viz.columns.tolist())
-    
+
     # Print key statistics
     print("Credit Risk Analysis Results:")
     # Create visualizations
     current_plot = plot_current_relationship(df_viz)
     predictive_plot = plot_predictive_relationship(df_viz)
-    
+
     return current_plot, predictive_plot
 
 def plot_current_relationship(current_df):
     """Create enhanced predictive analysis plot"""
     correlation = current_df['quarterly_spread'].corr(current_df['delinquency_rate_loans'])
-    
+
     fig = px.scatter(
         current_df,
         x='quarterly_spread',
@@ -56,14 +55,14 @@ def plot_current_relationship(current_df):
             'period': 'Economic Period'
         }
     )
-    
+
     apply_standard_formatting(fig)
     return fig
 
 def plot_predictive_relationship(prediction_df):
     """Create scatter plot of predictive relationship"""
     correlation = prediction_df['quarterly_spread'].corr(prediction_df['next_quarter_delinquency'])
-    
+
     fig = px.scatter(
         prediction_df,
         x='quarterly_spread',
@@ -75,7 +74,7 @@ def plot_predictive_relationship(prediction_df):
             'next_quarter_delinquency': 'Next Quarter Delinquency Rate (%)'
         }
     )
-    
+
     apply_standard_formatting(fig)
     return fig
 
@@ -93,12 +92,12 @@ def apply_standard_formatting(fig):
             bgcolor='rgba(255, 255, 255, 0.9)'
         )
     )
-    
+
     fig.update_traces(
         marker=dict(size=12, line=dict(width=1, color='white')),
         selector=dict(mode='markers')
     )
-    
+
     # Add source citation
     fig.add_annotation(
         text="Source: Federal Reserve Economic Data (FRED)",

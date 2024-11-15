@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 88
+
+# Add ipynb to extend-include
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # Basic Python style errors
+    "F",   # PyFlakes style errors
+    "W"    # Basic Python style warnings
+]
+
+exclude = [
+    "venv",
+    ".git",
+    "__pycache__"
+]

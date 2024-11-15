@@ -1,7 +1,9 @@
-# File specifically for data extraction 
-import requests
+# File specifically for data extraction
 import pandas as pd
+import requests
+
 from config import API_KEY, BASE_URL, INDICATORS, START_DATE
+
 
 def get_fred_data(series_id, start_date=START_DATE):
     """
@@ -25,24 +27,24 @@ def get_fred_data(series_id, start_date=START_DATE):
         'file_type': 'json',
         'observation_start': start_date
     }
-    
+
     try:
         # Get data from FRED
         response = requests.get(url, params=params)
-        response.raise_for_status()  
+        response.raise_for_status()
         data = response.json()
-        
+
         # Convert to pandas series with date index
         df = pd.DataFrame(data['observations'])
         df['date'] = pd.to_datetime(df['date'])
         df['value'] = pd.to_numeric(df['value'], errors='coerce')
-        
+
         return df.set_index('date')['value']
-    
+
     except requests.exceptions.RequestException as e:
         print(f"Couldn't get data for {series_id}. Error: {e}")
         return pd.Series()
-    
+
 def fred_load():
     """
     Get all economic indicators in one DataFrame

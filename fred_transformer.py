@@ -1,5 +1,4 @@
 # Third Cell - Data Transformation
-import numpy as np
 import pandas as pd
 
 from config import PERIODS
@@ -9,20 +8,20 @@ def fred_transform(df):
     # GDP calculation
     df['gdp_growth'] = df['gdp'].pct_change(periods=4) * 100
 
-    # Option - Adjusted Spread Calc: Average over each quarter 
+    # Option - Adjusted Spread Calc: Average over each quarter
     """
-    SQL Equivalent: 
+    SQL Equivalent:
     with cte AS (
         SELECT
-            date, 
+            date,
             AVERAGE(option_adjusted_spread) OVER PARTITION BY QUARTER(DATE)) as quarterly_spread
-        FROM fred_data) 
+        FROM fred_data)
     """
     df['quarterly_spread'] = df.groupby(df.index.to_period('Q'))['option_adjusted_spread'].transform('mean')
     # Add next quarter's delinquency rate for predictive modeling
     """
     SQL Equivalent:
-    SELECT 
+    SELECT
         date,
         delinquency_rate_loans,
         LEAD(delinquency_rate_loans, 1) OVER (
@@ -44,21 +43,21 @@ def fred_transform(df):
 
     # Add period classifications
     df['period'] = classify_periods(df)
-    
+
     return df
 
 def classify_periods(df):
     #Label economic periods from config.py file
     """
-    SQL Equivalent: 
+    SQL Equivalent:
     SELECT *,
-        CASE 
-            WHEN date BETWEEN '2001-01-01' AND '2001-12-31' THEN 'Dot Com' 
+        CASE
+            WHEN date BETWEEN '2001-01-01' AND '2001-12-31' THEN 'Dot Com'
             WHEN date BETWEEN '2007-10-01' AND '2009-06-30' THEN 'Great Recession'
             WHEN date BETWEEN '2020-01-01' AND '2020-06-30' THEN 'COVID'
-            ELSE 'Expansion' 
+            ELSE 'Expansion'
         END AS period
-    FROM fred_data 
+    FROM fred_data
     """
     def get_period(date):
         date_str = date.strftime('%Y-%m-%d')
@@ -66,13 +65,13 @@ def classify_periods(df):
             if start <= date_str <= end:
                 return period_name
         return 'Expansion'
-    
+
     return df.index.map(get_period)
 
 def fill_missing_values(df):
         # Fill down credit card delinquency data + loan delinquency data (only available quarterly) and spreads (averaging)
     """
-    SQL Equivalent: 
+    SQL Equivalent:
     with cte AS (
         SELECT
             date,
@@ -83,20 +82,20 @@ def fill_missing_values(df):
             COALESCE(
                 delinquency_rate_credit_cards,
                 LAG(delinquency_rate_credit_cards) OVER (ORDER BY date)
-            ) AS delinquency_rate_credit_cards, 
+            ) AS delinquency_rate_credit_cards,
             COALESCE(
                 quarterly_spreads,
                 LAG(quarterly_spreads) OVER (ORDER BY date)
-            ) AS quarterly_spreads, 
-        FROM fred_data ) 
-    I'd join back on this cte by date in the main table. 
+            ) AS quarterly_spreads,
+        FROM fred_data )
+    I'd join back on this cte by date in the main table.
     """
     columns_to_fill = [
         'delinquency_rate_credit_cards',
         'delinquency_rate_loans',
         'next_quarter_delinquency',
         'quarterly_spread' ]
-    
+
     df[columns_to_fill] = df[columns_to_fill].ffill()
-    
+
     return df
