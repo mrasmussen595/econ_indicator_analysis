@@ -1,6 +1,7 @@
 # config.py
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -61,15 +62,15 @@ INDICATORS = {
 
 # Important economic periods to highlight
 PERIODS = {
-   'Dot Com Crisis': ('2001-01-01', '2001-12-31'),
+   'Dot-com Bubble': ('2001-01-01', '2001-12-31'),
    'Great Recession': ('2007-10-01', '2009-06-30'),
    'COVID-19': ('2020-01-01', '2020-06-30')
 }
 
 # Colors for visualizations
 COLORS = {
-   'Expansion': '#2E86C1',    # Blue
-   'Dot Com Crisis': '#E74C3C',  # Red
-   'Great Recession': '#8E44AD', # Purple
-   'COVID-19': '#F39C12'      # Orange
+   'Expansion': '#0081AF',    # Blue
+   'Dot-com Bubble': '#2D936C',  # Green
+   'Great Recession': '#764B8E', # Purple
+   'COVID-19': '#9E2A2B'      # Red
 }

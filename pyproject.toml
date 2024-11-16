@@ -8,7 +8,8 @@ extend-include = ["*.ipynb"]
 select = [
     "E",   # Basic Python style errors
     "F",   # PyFlakes style errors
-    "W"    # Basic Python style warnings
+    "W",    # Basic Python style warnings
+    "I"   # Import sorting
 ]
 
 exclude = [

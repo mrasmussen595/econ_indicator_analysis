@@ -7,43 +7,29 @@ from config import PERIODS
 def fred_transform(df):
     # GDP calculation
     df['gdp_growth'] = df['gdp'].pct_change(periods=4) * 100
-
-    # Option - Adjusted Spread Calc: Average over each quarter
-    """
-    SQL Equivalent:
-    with cte AS (
-        SELECT
-            date,
-            AVERAGE(option_adjusted_spread) OVER PARTITION BY QUARTER(DATE)) as quarterly_spread
-        FROM fred_data)
-    """
+    
+    # Option-Adjusted Spread Calc: Average over each quarter
     df['quarterly_spread'] = df.groupby(df.index.to_period('Q'))['option_adjusted_spread'].transform('mean')
-    # Add next quarter's delinquency rate for predictive modeling
-    """
-    SQL Equivalent:
-    SELECT
-        date,
-        delinquency_rate_loans,
-        LEAD(delinquency_rate_loans, 1) OVER (
-            ORDER BY date
-        ) as next_quarter_delinquency
-    FROM fred_data
-    """
-
-    next_quarter = df.groupby(df.index.to_period('Q'))['delinquency_rate_loans'].last().shift(-1)
-    df['next_quarter_delinquency'] = df.index.to_period('Q').map(next_quarter)
-
-    # Call fill missing value function below
+    
+    # Add forward-looking delinquency rates
+    df = create_forward_metrics(
+    df, 
+    metric_column='delinquency_rate_loans', 
+    prefix='loan_delinq'
+    )
+    
+    # Call fill missing value function
     df = fill_missing_values(df)
+    
     # Date processing
     df = df.reset_index()
     df['date'] = pd.to_datetime(df['date'])
     df = df.set_index('date')
     df['quarter'] = df.index.quarter.astype(str) + "Q" + df.index.year.astype(str).str[-2:]
-
+    
     # Add period classifications
     df['period'] = classify_periods(df)
-
+    
     return df
 
 def classify_periods(df):
@@ -90,12 +76,38 @@ def fill_missing_values(df):
         FROM fred_data )
     I'd join back on this cte by date in the main table.
     """
+    result_df = df.copy()
+    
     columns_to_fill = [
         'delinquency_rate_credit_cards',
         'delinquency_rate_loans',
-        'next_quarter_delinquency',
         'quarterly_spread' ]
 
-    df[columns_to_fill] = df[columns_to_fill].ffill()
+    # Add any columns containing 'm_forward'
+    forward_columns = [col for col in df.columns if 'm_forward' in col]
+    columns_to_fill.extend(forward_columns)
+    
+    # Remove any columns that don't exist in the dataframe
+    columns_to_fill = [col for col in columns_to_fill if col in df.columns]
+    
+    # Forward fill the selected columns
+    if columns_to_fill:
+        result_df[columns_to_fill] = result_df[columns_to_fill].ffill()
+    
+    return result_df
 
+def create_forward_metrics(df, metric_column, prefix, intervals=[3, 6, 9, 12, 18, 24]):
+    """
+    Create forward-looking values at specified monthly intervals for any metric
+    """
+    for months in intervals:
+        # Calculate the number of quarters to shift
+        quarters_shift = months // 3
+        
+        # Get the last value for each quarter and shift it
+        forward_value = df.groupby(df.index.to_period('Q'))[metric_column].last().shift(-quarters_shift)
+        
+        # Add the column directly to the dataframe
+        df[f'{prefix}_{months}m_forward'] = df.index.to_period('Q').map(forward_value)
+    
     return df
