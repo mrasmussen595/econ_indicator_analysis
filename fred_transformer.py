@@ -1,7 +1,7 @@
 # Third Cell - Data Transformation
 import pandas as pd
 
-from config import PERIODS
+from fred_config import PERIODS
 
 
 def fred_transform(df, start_date):
@@ -85,7 +85,6 @@ def fill_missing_values(df):
     
     columns_to_fill = [
         'delinquency_rate_credit_cards',
-        'delinquency_rate_loans',
         'quarterly_spread'
     ] + [col for col in df.columns if 'm_forward' in col]
     

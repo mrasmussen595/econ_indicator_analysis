@@ -2,7 +2,7 @@
 import pandas as pd
 import requests
 
-from config import API_KEY, BASE_URL, INDICATORS, START_DATE
+from fred_config import API_KEY, BASE_URL, INDICATORS, START_DATE
 
 
 def get_fred_data(series_id, start_date=START_DATE):

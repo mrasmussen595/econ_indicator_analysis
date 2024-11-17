@@ -10,7 +10,7 @@ from fpdf import FPDF, Template
 from PIL import Image
 from plotly.subplots import make_subplots
 
-from config import COLORS
+from fred_config import COLORS
 
 
 def prepare_viz_data(df, start_date='1996-12-31'):
@@ -122,18 +122,18 @@ def create_stats_table(df):
     fig = go.Figure(data=[go.Table(
             header=dict(
                 values=['<b>Metric</b>'] + [f'<b>{regime}</b>' for regime in regimes],
-                font=dict(size=15, color='white', family='Arial'),
+                font=dict(size=14, color='white', family='Arial'),
                 fill_color='#2c3e50',
                 align=['left'] + ['center'] * len(regimes),
-                height=60,  # Increased from 40
+                height=30,  # Increased from 40
                 line_color='#34495e'
             ),
             cells=dict(
                 values=[[row['Metric'] for row in results]] + 
                     [[row[regime] for row in results] for regime in regimes],
-                font=dict(size=14, family='Arial'),
+                font=dict(size=12, family='Arial'),
                 align=['left'] + ['center'] * len(regimes),
-                height=45,  # Increased from 30
+                height=20,  # Increased from 30
                 fill_color=[['#f8f9fa', '#ffffff'] * (len(results)//2 + 1)],
                 line_color='#ecf0f1'
             )
@@ -141,10 +141,37 @@ def create_stats_table(df):
 
     # Add height to the entire figure
     fig.update_layout(
-        height=800,  # Specify overall figure height
-        margin=dict(t=20, b=20)  # Add some margin at top and bottom
+        height=550,  # Specify overall figure height
+        margin=dict(t=20, b=20))
+ # Add some margin at top and bottom
+    
+
+    fig.update_layout(
+        title={
+            'text': "Economic Indicator Analysis",
+            'x': 0.5,
+            'y': 0.95,
+            'xanchor': 'center', 
+            'yanchor': 'top',
+            'font': dict(size=24),
+        },
+        margin=dict(t=80, b=20),
+        width=1300,  # Reduced from 1000
+        height=650  # Reduced from 600
     )
 
+    # Add subtitle - adjusted y position
+    fig.add_annotation(
+        text="Comparison between option-adjusted spreads and corporate loan delinquency rate statistics by economic period",
+        xref="paper",
+        yref="paper", 
+        x=0.5,
+        y=1.065,  # Changed from 0.95 to 0.85
+        showarrow=False,
+        font=dict(size=16),
+        xanchor='center',
+        yanchor='top',
+    )
     return fig
 
 def plot_current_relationship(current_df):
@@ -322,17 +349,18 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     
     pdf = FPDF()  # A4 (210 by 297 mm)
     WIDTH = 210
-
+    HEADER_PATH = r"C:\Users\mrasm\econ_indicator_analysis\report_header.png"
     ''' First Page '''
     pdf.add_page()
+    pdf.image(HEADER_PATH, 0, 0, WIDTH)
     create_title(pdf)
     
     # Save plots as images
-    stats_table.write_image("./tmp/stats_table.png")
+    stats_table.write_image("./tmp/stats_table.png") 
     time_series_plot.write_image("./tmp/time_series_plot.png")
     
     # Add plots to first page
-    pdf.image("./tmp/stats_table.png", 5, 35, WIDTH-10)
+    pdf.image("./tmp/stats_table.png", 5, 35, WIDTH)
     pdf.image("./tmp/time_series_plot.png", 5, 140, WIDTH-10)
 
     ''' Second Page '''
