@@ -62,15 +62,16 @@ INDICATORS = {
 
 # Important economic periods to highlight
 PERIODS = {
-   'Dot-com Bubble': ('2001-01-01', '2001-12-31'),
-   'Great Recession': ('2007-10-01', '2009-06-30'),
-   'COVID-19': ('2020-01-01', '2020-06-30')
+    'Pre-GFC (1996-2007)': ('1996-12-31', '2007-10-01'),
+    'Great Recession (2008-2010)': ('2007-10-01', '2009-06-30'),
+    'Post-Crisis (2010-2020)': ('2009-06-30', '2020-01-01'),
+    'Covid to Present (2020-2024)': ('2020-01-01', None)
 }
 
 # Colors for visualizations
 COLORS = {
-   'Expansion': '#0081AF',    # Blue
-   'Dot-com Bubble': '#2D936C',  # Green
-   'Great Recession': '#764B8E', # Purple
-   'COVID-19': '#9E2A2B'      # Red
+   'Pre-GFC (1996-2007)': '#0081AF',    # Blue
+   'Great Recession (2008-2010)': '#2D936C',  # Green
+   'Post-Crisis (2010-2020)': '#764B8E', # Purple
+   'Covid to Present (2020-2024)': '#9E2A2B'      # Red
 }

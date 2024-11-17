@@ -1,7 +1,13 @@
 # visualizations.py
+import io
+import os
+from datetime import datetime
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from fpdf import FPDF, Template
+from PIL import Image
 from plotly.subplots import make_subplots
 
 from config import COLORS
@@ -35,15 +41,33 @@ def create_stats_table(df):
     """
     Create a visually enhanced statistical summary table by market regime with improved formatting.
     """
+    def format_correlation(value, is_r_squared=False):
+        """Helper function to format and color-code correlation values"""
+        if is_r_squared:
+            if value > 0.5:
+                color = "#2ecc71"  # Strong R² (green)
+            elif value < 0.1:
+                color = "#e74c3c"  # Weak R² (red)
+            else:
+                return "{:.2f}".format(value)
+        else:
+            if abs(value) > 0.7:
+                color = "#2ecc71"  # Strong correlation (green)
+            elif abs(value) < 0.3 or value < 0:
+                color = "#e74c3c"  # Weak/negative correlation (red)
+            else:
+                return "{:.2f}".format(value)
+        return f'<span style="color: {color}">{value:.2f}</span>'
+
     # Enhanced metrics list with more descriptive names
     metrics = [
         {'name': 'Credit Spread Analysis', 'is_header': True},
-        {'name': 'Average Option-Adjusted Spread', 'column': 'quarterly_spread', 'func': 'mean', 'format': '{:.0f} bps'},
-        {'name': 'Spread Volatility (Std Dev)', 'column': 'quarterly_spread', 'func': 'std', 'format': '{:.0f} bps'},
+        {'name': 'Average Option-Adjusted Spread', 'column': 'option_adjusted_spread', 'func': 'mean', 'format': '{:.0f} bps'},
+        {'name': 'Spread Volatility (Std Dev)', 'column': 'option_adjusted_spread', 'func': 'std', 'format': '{:.0f} bps'},
         
         {'name': 'Loan Performance Metrics', 'is_header': True},
         {'name': 'Average Delinquency Rate', 'column': 'delinquency_rate_loans', 'func': 'mean', 'format': '{:.2f}%'},
-        {'name': 'Delinquency Volatility', 'column': 'delinquency_rate_loans', 'func': 'std', 'format': '{:.2f}%'},
+        {'name': 'Delinquency Volatility (Std Dev)', 'column': 'delinquency_rate_loans', 'func': 'std', 'format': '{:.2f}%'},
         
         {'name': 'Predictive Relationships', 'is_header': True}
     ]
@@ -53,14 +77,14 @@ def create_stats_table(df):
         period = 'Quarter' if months == 3 else 'Half-Year' if months == 6 else 'Year'
         metrics.extend([
             {'name': f'{period} Forward Correlation', 'column': f'loan_delinq_{months}m_forward', 
-             'func': 'corr', 'base_column': 'quarterly_spread', 'format': '{:.2f}'},
+             'func': 'corr', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'},
             {'name': f'{period} Forward R²', 'column': f'loan_delinq_{months}m_forward', 
-             'func': 'corr_squared', 'base_column': 'quarterly_spread', 'format': '{:.2f}'}
+             'func': 'corr_squared', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'}
         ])
 
     # Calculate statistics
     results = []
-    regimes = df['market_regime'].unique()
+    regimes = df['economic_period'].unique()
 
     for metric in metrics:
         if metric.get('is_header'):
@@ -69,86 +93,58 @@ def create_stats_table(df):
             row = {'Metric': f'  {metric["name"]}'}
             
             for regime in regimes:
-                regime_data = df[df['market_regime'] == regime]
+                regime_data = df[df['economic_period'] == regime]
                 try:
                     if metric.get('func') == 'corr':
-                        value = regime_data[metric['base_column']].corr(regime_data[metric['column']])
-                        # Color coding for correlations
-                        if abs(value) > 0.7:
-                            formatted_value = f'<span style="color: #2ecc71">{metric["format"].format(value)}</span>'
-                        elif abs(value) < 0.3 or value < 0:
-                            formatted_value = f'<span style="color: #e74c3c">{metric["format"].format(value)}</span>'
-                        else:
-                            formatted_value = metric['format'].format(value)
+                        # Calculate correlation using the base column and target column
+                        corr = regime_data[metric['base_column']].corr(regime_data[metric['column']])
+                        row[regime] = format_correlation(corr, is_r_squared=False)
+                        
                     elif metric.get('func') == 'corr_squared':
-                        value = regime_data[metric['base_column']].corr(regime_data[metric['column']]) ** 2
-                        # Color coding for R-squared
-                        if value > 0.5:
-                            formatted_value = f'<span style="color: #2ecc71">{metric["format"].format(value)}</span>'
-                        elif value < 0.1:
-                            formatted_value = f'<span style="color: #e74c3c">{metric["format"].format(value)}</span>'
-                        else:
-                            formatted_value = metric['format'].format(value)
+                        # Calculate R² as the square of the correlation
+                        corr = regime_data[metric['base_column']].corr(regime_data[metric['column']])
+                        r_squared = corr ** 2
+                        row[regime] = format_correlation(r_squared, is_r_squared=True)
+                        
                     else:
+                        # Handle other statistics (mean, std, etc.)
                         value = getattr(regime_data[metric['column']], metric['func'])()
-                        formatted_value = metric['format'].format(value)
+                        # Convert percentage points to basis points for spread metrics
+                        if metric['column'] == 'option_adjusted_spread':
+                            value = value * 100
+                        row[regime] = metric['format'].format(value)
                     
-                    row[regime] = formatted_value
-                except:
+                except Exception as e:
+                    print(f"Error calculating {metric['name']} for {regime}: {str(e)}")
                     row[regime] = 'N/A'
         
         results.append(row)
-
-    # Create table with enhanced formatting
     fig = go.Figure(data=[go.Table(
-        header=dict(
-            values=['<b>Metric</b>'] + [f'<b>{regime}</b>' for regime in regimes],
-            font=dict(size=15, color='white', family='Arial'),
-            fill_color='#2c3e50',
-            align=['left'] + ['center'] * len(regimes),
-            height=40,
-            line_color='#34495e'
-        ),
-        cells=dict(
-            values=[[row['Metric'] for row in results]] + 
-                  [[row[regime] for row in results] for regime in regimes],
-            font=dict(size=14, family='Arial'),
-            align=['left'] + ['center'] * len(regimes),
-            height=30,
-            fill_color=[['#f8f9fa', '#ffffff'] * (len(results)//2 + 1)],
-            line_color='#ecf0f1'
-        )
-    )])
+            header=dict(
+                values=['<b>Metric</b>'] + [f'<b>{regime}</b>' for regime in regimes],
+                font=dict(size=15, color='white', family='Arial'),
+                fill_color='#2c3e50',
+                align=['left'] + ['center'] * len(regimes),
+                height=60,  # Increased from 40
+                line_color='#34495e'
+            ),
+            cells=dict(
+                values=[[row['Metric'] for row in results]] + 
+                    [[row[regime] for row in results] for regime in regimes],
+                font=dict(size=14, family='Arial'),
+                align=['left'] + ['center'] * len(regimes),
+                height=45,  # Increased from 30
+                fill_color=[['#f8f9fa', '#ffffff'] * (len(results)//2 + 1)],
+                line_color='#ecf0f1'
+            )
+        )])
 
-    # Update layout with improved spacing
+    # Add height to the entire figure
     fig.update_layout(
-        title=dict(
-            text='Credit Market Risk Analysis by Regime<br>' + 
-                 '<span style="font-size: 15px; color: #34495e">Relationship between the US High Yield Index Option-Adjusted Spread and Corporate Loan Delinquency Rate has weakened over time </span>',
-            font=dict(size=26, family='Arial', color='#2c3e50'),
-            x=0.5,
-            y=0.95,
-            xanchor='center',
-            yanchor='top'
-        ),
-        width=1300,
-        height=600,
-        margin=dict(t=80, l=40, r=40, b=40),
-        paper_bgcolor='white',
-        showlegend=False
+        height=800,  # Specify overall figure height
+        margin=dict(t=20, b=20)  # Add some margin at top and bottom
     )
-    
-    # Add enhanced footer with improved positioning
-    fig.add_annotation(
-        text="<b>Source:</b> Federal Reserve Economic Data (FRED) | " +
-             "<b>Color Coding:</b> Green indicates strong predictive relationships, Red indicates weak or negative relationships",
-        xref="paper", yref="paper",
-        x=0.0, y=-0.05,
-        showarrow=False,
-        font=dict(size=13, color='#2c3e50'),
-        align='left'
-    )
-    
+
     return fig
 
 def plot_current_relationship(current_df):
@@ -159,14 +155,14 @@ def plot_current_relationship(current_df):
         current_df,
         x='quarterly_spread',
         y='delinquency_rate_loans',
-        color='period',
+        color='economic_period',
         trendline="ols",
         title='High Yield Spreads Predict Future Loan Delinquencies<br>' +
               f'<span style="font-size: 14px">Correlation: {correlation:.3f}</span>',
         labels={
             'quarterly_spread': 'Current Option-Adjusted Spread',
             'delinquency_rate_loans': 'Current Loan Delinquency Rate (%)',
-            'period': 'Economic Period'
+            'economic_period': 'Economic Period'
         }
     )
 
@@ -196,9 +192,9 @@ def plot_time_series(df):
    """Create time series plot with clean styling and axis labels"""
    # Calculate annual averages
    df_annual = df.groupby('year').agg({
-       'quarterly_spread': 'mean',
+       'option_adjusted_spread': 'mean',
        'delinquency_rate_loans': 'mean',
-       'period': 'first'
+       'economic_period': 'first'
    }).reset_index()
 
    fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -207,10 +203,10 @@ def plot_time_series(df):
    fig.add_trace(
        go.Scatter(
            x=df_annual['year'],
-           y=df_annual['quarterly_spread'],
+           y=df_annual['option_adjusted_spread'],
            name="Option-Adjusted Spread",
            mode='lines+markers',  # Keep markers, remove text
-           line=dict(color=COLORS['Expansion'])
+           line=dict(color=COLORS['Pre-GFC (1996-2007)'])
        ),
        secondary_y=False
    )
@@ -222,7 +218,7 @@ def plot_time_series(df):
            y=df_annual['delinquency_rate_loans'],
            name="Delinquency Rate",
            mode='lines+markers',  # Keep markers, remove text
-           line=dict(color=COLORS['Great Recession'])
+           line=dict(color=COLORS['Covid to Present (2020-2024)'])
        ),
        secondary_y=True
    )
@@ -310,187 +306,58 @@ def apply_standard_formatting(fig, title, subtitle=None):
     
     return fig
 
-def fred_export(df, output_path='fred_analysis.pdf'):
-    """
-    Export FRED analysis plots to a single PDF with clean, executive-ready formatting.
-    Includes stats table and all visualizations with properly positioned legends.
-    """
-    # Get all plots
-    stats_table, current_plot, predictive_plot, time_series_plot = fred_visualize(df)
-    
-    # Create figure with subplots - including space for stats table
-    fig = make_subplots(
-        rows=4, 
-        cols=1,
-        row_heights=[0.25, 0.25, 0.25, 0.25],
-        vertical_spacing=0.08,
-        specs=[[{"type": "table"}],
-               [{"secondary_y": False}],
-               [{"secondary_y": False}],
-               [{"secondary_y": True}]],
-        subplot_titles=["", "Current Relationship Analysis", 
-                       "Predictive Relationship Analysis", "Historical Trends"]
-    )
-    
-    # Add stats table with full formatting
-    table_colors = ['rgb(244, 248, 251)', 'white']  # Alternating row colors
-    fig.add_trace(
-        go.Table(
-            header=dict(
-                values=[[col] for col in stats_table.data[0].header.values],
-                font=dict(size=14, family='Arial', color='#2c3e50'),
-                fill_color='rgb(232, 241, 248)',
-                align='left',
-                height=30
-            ),
-            cells=dict(
-                values=[[val] for val in stats_table.data[0].cells.values],
-                font=dict(size=12, family='Arial', color='#2c3e50'),
-                fill_color=[table_colors*(len(stats_table.data[0].cells.values[0])//2 + 1)],
-                align='left',
-                height=25
-            ),
-            columnwidth=[2, 1]  # Adjust column widths
-        ),
-        row=1,
-        col=1
-    )
-    
-    # Helper function to extract scatter plot data
-    def add_scatter_traces(source_fig, target_fig, row, show_legend=True):
-        for trace in source_fig.data:
-            if isinstance(trace, go.Scatter):
-                new_trace = trace
-            else:
-                # Convert px trace to go.Scatter
-                new_trace = go.Scatter(
-                    x=trace['x'],
-                    y=trace['y'],
-                    mode='markers' if trace.mode == 'markers' else 'lines+markers',
-                    name=trace.name,
-                    marker=dict(
-                        color=trace.marker.color if hasattr(trace.marker, 'color') else None,
-                        size=12,
-                        line=dict(width=1, color='white')
-                    ),
-                    line=dict(color=trace.line.color, width=2) if hasattr(trace, 'line') else None,
-                    showlegend=show_legend
-                )
-            target_fig.add_trace(new_trace, row=row, col=1)
+def create_title(pdf, title="FRED Economic Analysis"):
+    # Add title
+    pdf.set_font('Arial', '', 24)  
+    pdf.ln(60)
+    pdf.write(5, title)
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 16)
+    pdf.write(4, "Economic Analysis Report")
+    pdf.ln(5)
 
-    # Add current relationship plot
-    add_scatter_traces(current_plot, fig, 2)
+def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, filename="fred_analysis.pdf"):
+    # Create tmp directory if it doesn't exist
+    os.makedirs("./tmp", exist_ok=True)
     
-    # Add predictive relationship plot (no legend needed)
-    add_scatter_traces(predictive_plot, fig, 3, False)
+    pdf = FPDF()  # A4 (210 by 297 mm)
+    WIDTH = 210
+
+    ''' First Page '''
+    pdf.add_page()
+    create_title(pdf)
     
-    # Add time series plot with dual y-axis
-    for trace in time_series_plot.data:
-        is_delinquency = trace.name == "Delinquency Rate"
-        fig.add_trace(
-            go.Scatter(
-                x=trace.x,
-                y=trace.y,
-                mode='lines+markers',
-                name=trace.name,
-                line=trace.line,
-                marker=dict(size=8),
-                showlegend=True
-            ),
-            row=4,
-            col=1,
-            secondary_y=is_delinquency
-        )
+    # Save plots as images
+    stats_table.write_image("./tmp/stats_table.png")
+    time_series_plot.write_image("./tmp/time_series_plot.png")
     
-    # Update layout with executive-ready formatting
-    fig.update_layout(
-        # Overall figure settings
-        title=dict(
-            text='Credit Market Risk Analysis Overview',
-            font=dict(size=28, family='Arial', color='#2c3e50'),
-            x=0.5,
-            y=0.98,
-            xanchor='center',
-            yanchor='top'
-        ),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        font=dict(family="Arial", size=12),
-        width=1200,
-        height=2400,
-        margin=dict(t=100, l=80, r=40, b=60),
-        
-        # Two separate legends for different plot types
-        showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=0.18,  # Position between time series and other plots
-            xanchor="center",
-            x=0.5,
-            bgcolor='rgba(255, 255, 255, 0.9)',
-            borderwidth=1,
-            bordercolor='#E5E5E5',
-            title=dict(text="Economic Period")
-        ),
-        legend2=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.02,  # Position at bottom
-            xanchor="center",
-            x=0.5,
-            bgcolor='rgba(255, 255, 255, 0.9)',
-            borderwidth=1,
-            bordercolor='#E5E5E5',
-            title=dict(text="Metrics")
-        )
-    )
+    # Add plots to first page
+    pdf.image("./tmp/stats_table.png", 5, 35, WIDTH-10)
+    pdf.image("./tmp/time_series_plot.png", 5, 140, WIDTH-10)
+
+    ''' Second Page '''
+    pdf.add_page()
     
-    # Update axes styling for all subplots
-    fig.update_xaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='#E5E5E5',
-        mirror=True,
-        showline=True,
-        linewidth=2,
-        linecolor='#2C3E50'
-    )
+    # Save plots as images
+    current_plot.write_image("./tmp/current_plot.png")
+    predictive_plot.write_image("./tmp/predictive_plot.png")
     
-    fig.update_yaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='#E5E5E5',
-        mirror=True,
-        showline=True,
-        linewidth=2,
-        linecolor='#2C3E50'
-    )
+    # Add plots to second page
+    pdf.image("./tmp/current_plot.png", 5,10, WIDTH-20)
+    pdf.image("./tmp/predictive_plot.png", 5, 140, WIDTH-10)
+
+    # Save the PDF
+    pdf.output(filename)
+
+    # Clean up temporary files
+    for file in ["stats_table.png", "current_plot.png", "predictive_plot.png", "time_series_plot.png"]:
+        try:
+            os.remove(f"./tmp/{file}")
+        except:
+            pass
     
-    # Update specific axis labels
-    fig.update_xaxes(title_text="Current Option-Adjusted Spread", row=2, col=1)
-    fig.update_yaxes(title_text="Current Loan Delinquency Rate (%)", row=2, col=1)
-    
-    fig.update_xaxes(title_text="Current Quarter Spread (basis points)", row=3, col=1)
-    fig.update_yaxes(title_text="Next Quarter Delinquency Rate (%)", row=3, col=1)
-    
-    fig.update_xaxes(title_text="Year", row=4, col=1)
-    fig.update_yaxes(title_text="Option-Adjusted Spread (basis points)", row=4, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="Delinquency Rate (%)", row=4, col=1, secondary_y=True)
-    
-    # Add source citation
-    fig.add_annotation(
-        text="Source: Federal Reserve Economic Data (FRED)",
-        xref="paper",
-        yref="paper",
-        x=0.0,
-        y=-0.05,
-        showarrow=False,
-        font=dict(size=11, color='#666666'),
-        align='left'
-    )
-    
-    # Export to PDF
-    fig.write_image(output_path, format='pdf')
-    
-    return fig
+    # Try to remove tmp directory if empty
+    try:
+        os.rmdir("./tmp")
+    except:
+        pass
