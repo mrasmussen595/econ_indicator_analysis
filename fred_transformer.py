@@ -4,12 +4,12 @@ import pandas as pd
 from config import PERIODS
 
 
-def fred_transform(df):
+def fred_transform(df, start_date):
     # GDP calculation
     df['gdp_growth'] = df['gdp'].pct_change(periods=4) * 100
     
     # Option-Adjusted Spread Calc: Average over each quarter
-    df['quarterly_spread'] = df.groupby(df.index.to_period('Q'))['option_adjusted_spread'].transform('mean')
+    df['quarterly_spread'] = (df.groupby(df.index.to_period('Q'))['option_adjusted_spread'].transform('mean') * 100).round()
     
     # Add forward-looking delinquency rates
     df = create_forward_metrics(
@@ -28,31 +28,48 @@ def fred_transform(df):
     df['quarter'] = df.index.quarter.astype(str) + "Q" + df.index.year.astype(str).str[-2:]
     
     # Add period classifications
-    df['period'] = classify_periods(df)
+    df = classify_periods(df)
+
+    start_date = pd.to_datetime(start_date)
+    # Since date is the index, filter using the index directly
+    df = df[df.index >= start_date]
     
     return df
 
 def classify_periods(df):
-    #Label economic periods from config.py file
-    """
-    SQL Equivalent:
-    SELECT *,
-        CASE
-            WHEN date BETWEEN '2001-01-01' AND '2001-12-31' THEN 'Dot Com'
-            WHEN date BETWEEN '2007-10-01' AND '2009-06-30' THEN 'Great Recession'
-            WHEN date BETWEEN '2020-01-01' AND '2020-06-30' THEN 'COVID'
-            ELSE 'Expansion'
-        END AS period
-    FROM fred_data
-    """
-    def get_period(date):
-        date_str = date.strftime('%Y-%m-%d')
-        for period_name, (start, end) in PERIODS.items():
-            if start <= date_str <= end:
-                return period_name
-        return 'Expansion'
-
-    return df.index.map(get_period)
+   #Label economic periods from config.py file
+   """
+   SQL Equivalent:
+   SELECT *,
+       CASE
+           WHEN date BETWEEN '2001-01-01' AND '2001-12-31' THEN 'Dot Com'
+           WHEN date BETWEEN '2007-10-01' AND '2009-06-30' THEN 'Great Recession'
+           WHEN date BETWEEN '2020-01-01' AND '2020-06-30' THEN 'COVID'
+           ELSE 'Expansion'
+       END AS detailed_period,
+       CASE 
+           WHEN date < '2008-01-01' THEN 'Pre-GFC'
+           WHEN date < '2010-01-01' THEN 'Great Recession'
+           WHEN date < '2020-01-01' THEN 'Post-Crisis'
+           ELSE 'Post-COVID'
+       END AS market_regime
+   FROM fred_data
+   """
+   def get_period(date):
+       date_str = date.strftime('%Y-%m-%d')
+       for period_name, (start, end) in PERIODS.items():
+           if start <= date_str <= end:
+               return period_name
+       return 'Expansion'
+   
+   df['period'] = df.index.map(get_period)
+   df['market_regime'] = df.index.map(lambda date: 
+        'Pre-GFC (1996-2007)' if date < pd.Timestamp('2007-10-01')
+        else 'Great Recession (2008-2010)' if date < pd.Timestamp('2009-06-30')
+        else 'Post-Crisis (2010-2020)' if date < pd.Timestamp('2020-01-01')
+        else 'Covid to Present (2020-2024)'
+    )
+   return df
 
 def fill_missing_values(df):
         # Fill down credit card delinquency data + loan delinquency data (only available quarterly) and spreads (averaging)
@@ -76,25 +93,21 @@ def fill_missing_values(df):
         FROM fred_data )
     I'd join back on this cte by date in the main table.
     """
-    result_df = df.copy()
+    df = df.sort_index(ascending=False)
     
     columns_to_fill = [
         'delinquency_rate_credit_cards',
         'delinquency_rate_loans',
-        'quarterly_spread' ]
-
-    # Add any columns containing 'm_forward'
-    forward_columns = [col for col in df.columns if 'm_forward' in col]
-    columns_to_fill.extend(forward_columns)
+        'quarterly_spread'
+    ] + [col for col in df.columns if 'm_forward' in col]
     
-    # Remove any columns that don't exist in the dataframe
     columns_to_fill = [col for col in columns_to_fill if col in df.columns]
     
-    # Forward fill the selected columns
     if columns_to_fill:
-        result_df[columns_to_fill] = result_df[columns_to_fill].ffill()
+        df[columns_to_fill] = df[columns_to_fill].ffill()
     
-    return result_df
+    df = df.sort_index()
+    return df
 
 def create_forward_metrics(df, metric_column, prefix, intervals=[3, 6, 9, 12, 18, 24]):
     """
@@ -109,5 +122,5 @@ def create_forward_metrics(df, metric_column, prefix, intervals=[3, 6, 9, 12, 18
         
         # Add the column directly to the dataframe
         df[f'{prefix}_{months}m_forward'] = df.index.to_period('Q').map(forward_value)
-    
+
     return df
