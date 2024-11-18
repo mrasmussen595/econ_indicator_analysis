@@ -46,7 +46,7 @@ econ_indicator_analysis/
 ├── fred_loader.py        # Data loading from FRED API
 ├── fred_transformer.py   # Data transformation utilities
 ├── fred_visualizer.py    # Visualization tools
-├── fred_config.py        # FRED-specific configurations
+├── fred_config.py        # Environment considerations and parameters
 ├── analysis.ipynb       # Example Jupyter notebook
 │
 ├── resources/           # Additional resource files
@@ -58,41 +58,65 @@ econ_indicator_analysis/
 
 1. Configure your FRED API settings in `fred_config.py`
 
-2. Basic usage example:
-```python
-from fred_loader import FREDLoader
-from fred_transformer import FREDTransformer
-from fred_visualizer import FREDVisualizer
-
-# Initialize components
-loader = FREDLoader()
-transformer = FREDTransformer()
-visualizer = FREDVisualizer()
-
-# Load and process data
-data = loader.get_series('GDP')
-processed_data = transformer.transform(data)
-visualizer.plot_series(processed_data)
-```
-
-3. For interactive analysis, open `analysis.ipynb` in Jupyter Notebook:
+2. For interactive analysis, open `analysis.ipynb` in Jupyter Notebook:
 ```bash
 jupyter notebook analysis.ipynb
 ```
 
+3. The notebook contains four main sections:
+
+### Data Loading
+```python
+# Import required libraries
+%load_ext autoreload
+%autoreload 2
+
+from IPython.display import display
+from fred_loader import fred_load
+from fred_transformer import fred_transform
+from fred_visualizer import fred_export, fred_visualize
+
+# Load FRED data
+df = fred_load()
+print("Data loaded successfully!")
+display(df)
+```
+
+### Data Transformation
+```python
+# Transform data with specified start date
+df = fred_transform(df, start_date='1996-12-31')
+print("Transformation complete!")
+display(df)
+
+# Export to Excel
+df.to_excel('stats.xlsx')
+```
+
+### Visualization and Export
+```python
+# Generate visualizations
+stats_table, current_plot, predictive_plot, time_series_plot = fred_visualize(df)
+
+# Display all visualizations
+stats_table.show()
+current_plot.show()
+predictive_plot.show()
+time_series_plot.show()
+
+# Export to PDF
+fred_export(stats_table, current_plot, predictive_plot, time_series_plot)
+```
+
 ## 📊 Example Outputs
 
-The project can generate various analyses and visualizations, which are saved in:
-- `stats.xlsx` for statistical summaries
-- `fred_analysis.pdf` for detailed analysis reports
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/YourFeature`
-3. Commit changes: `git commit -m 'Add YourFeature'`
-4. Push to branch: `git push origin feature/YourFeature`
-5. Submit a Pull Request
+The project generates various analyses and visualizations:
+- `stats.xlsx`: Excel file containing transformed data and statistical summaries
+- `fred_analysis.pdf`: PDF report containing:
+  - Statistical summary table
+  - Current economic indicators plot
+  - Predictive analysis plot
+  - Time series analysis plot
 
 ## 📝 License
 
