@@ -123,7 +123,7 @@ def create_stats_table(df):
             header=dict(
                 values=['<b>Metric</b>'] + [f'<b>{regime}</b>' for regime in regimes],
                 font=dict(size=14, color='white', family='Arial'),
-                fill_color='#2c3e50',
+                fill_color='#0A5FB4',
                 align=['left'] + ['center'] * len(regimes),
                 height=30,  # Increased from 40
                 line_color='#34495e'
@@ -131,9 +131,9 @@ def create_stats_table(df):
             cells=dict(
                 values=[[row['Metric'] for row in results]] + 
                     [[row[regime] for row in results] for regime in regimes],
-                font=dict(size=12, family='Arial'),
+                font=dict(size=13, family='Arial'),
                 align=['left'] + ['center'] * len(regimes),
-                height=20,  # Increased from 30
+                height=30,  # Increased from 30
                 fill_color=[['#f8f9fa', '#ffffff'] * (len(results)//2 + 1)],
                 line_color='#ecf0f1'
             )
@@ -141,42 +141,76 @@ def create_stats_table(df):
 
     # Add height to the entire figure
     fig.update_layout(
-        height=550,  # Specify overall figure height
+        height=500,  # Specify overall figure height
         margin=dict(t=20, b=20))
  # Add some margin at top and bottom
     
 
     fig.update_layout(
-        title={
-            'text': "Economic Indicator Analysis",
-            'x': 0.5,
-            'y': 0.95,
-            'xanchor': 'center', 
-            'yanchor': 'top',
-            'font': dict(size=24),
-        },
+
         margin=dict(t=80, b=20),
         width=1300,  # Reduced from 1000
-        height=650  # Reduced from 600
-    )
+        height=600,
+        title=dict(
+            text="Key Statistics Summary",
+            font=dict(size=24),
+            x=0.5,  # Center the title
+            y=0.95  # Reduced from 600
+    ))
 
     # Add subtitle - adjusted y position
     fig.add_annotation(
-        text="Comparison between option-adjusted spreads and corporate loan delinquency rate statistics by economic period",
+        text="Option-adjusted spreads vs corporate loan delinquency rate statistics by economic period",
         xref="paper",
         yref="paper", 
         x=0.5,
-        y=1.065,  # Changed from 0.95 to 0.85
+        y=1.05,  
         showarrow=False,
         font=dict(size=16),
         xanchor='center',
+        yanchor='top',
+    ), 
+
+    fig.add_annotation(
+        text="Option-Adjusted Spread: Measures spread between below-investment-grade bonds (BB and below) and Treasury curve",
+        xref="paper",
+        yref="paper", 
+        x=0,
+        y=0.11, 
+        showarrow=False,
+        font=dict(size=12),
+        xanchor='left',
+        yanchor='top',
+    )
+
+    fig.add_annotation(
+        text="Delinquency Rate on Business Loans: Percentage of business loans that are 30+ days past due measured across all US commercial banks",
+        xref="paper",
+        yref="paper", 
+        x=0,
+        y=0.07,  
+        showarrow=False,
+        font=dict(size=12),
+        xanchor='left',
+        yanchor='top',
+    )
+
+    fig.add_annotation(
+        text="Source: Federal Reserve Economic Data (FRED)",
+        xref="paper",
+        yref="paper", 
+        x=0,
+        y=0.0001,  
+        showarrow=False,
+        font=dict(size=12),
+        xanchor='left',
         yanchor='top',
     )
     return fig
 
 def plot_current_relationship(current_df):
     """Create current analysis plot"""
-    correlation = current_df['quarterly_spread'].corr(current_df['delinquency_rate_loans'])
+    correlation = current_df['option_adjusted_spread'].corr(current_df['delinquency_rate_loans'])
 
     fig = px.scatter(
         current_df,
@@ -187,10 +221,22 @@ def plot_current_relationship(current_df):
         title='High Yield Spreads Predict Future Loan Delinquencies<br>' +
               f'<span style="font-size: 14px">Correlation: {correlation:.3f}</span>',
         labels={
-            'quarterly_spread': 'Current Option-Adjusted Spread',
-            'delinquency_rate_loans': 'Current Loan Delinquency Rate (%)',
+            'quarterly_spread': 'Average Quarterly Spread',
+            'delinquency_rate_loans': 'Current Quarter Delinquency Rate (%)',
             'economic_period': 'Economic Period'
         }
+    )
+
+    fig.update_layout(
+        # Legend configuration
+        legend=dict(
+            title="Economic Period",
+            borderwidth=1,
+            bordercolor='#E5E5E5',
+            bgcolor='rgba(255, 255, 255, 0.9)',
+            x=0.02,
+            y=0.98
+        )
     )
 
     apply_standard_formatting(fig, "Corporate Loan Risk Analysis", f"Delinquency Rate vs Option-Adjusted Spread (Correlation: {correlation:.3f})")
@@ -198,18 +244,32 @@ def plot_current_relationship(current_df):
 
 def plot_predictive_relationship(prediction_df):
     """Create scatter plot of predictive relationship"""
-    correlation = prediction_df['quarterly_spread'].corr(prediction_df['loan_delinq_3m_forward'])
+    correlation = prediction_df['option_adjusted_spread'].corr(prediction_df['loan_delinq_3m_forward'])
 
     fig = px.scatter(
         prediction_df,
         x='quarterly_spread',
         y='loan_delinq_3m_forward',
+        color='economic_period',
         trendline="ols",
         title=f'Predictive Analysis (Correlation: {correlation:.3f})',
         labels={
-            'quarterly_Spread': 'Current Quarter Spread (basis points)',
-            'loan_delinq_3m_forward': 'Next Quarter Delinquency Rate (%)'
+            'quarterly_spread': 'Average Quarterly Spread',
+            'loan_delinq_3m_forward': 'Next Quarter Delinquency Rate (%)',
+            'economic_period': 'Economic Period'
         }
+    )
+
+    fig.update_layout(
+        # Legend configuration
+        legend=dict(
+            title="Economic Period",
+            borderwidth=1,
+            bordercolor='#E5E5E5',
+            bgcolor='rgba(255, 255, 255, 0.9)',
+            x=0.02,
+            y=0.98
+        )
     )
 
     apply_standard_formatting(fig, "Predictive Risk Analysis", f"Next Quarter's Delinquency Rate vs Current Option-Adjusted Spread (Correlation: {correlation:.3f})")
@@ -245,7 +305,7 @@ def plot_time_series(df):
            y=df_annual['delinquency_rate_loans'],
            name="Delinquency Rate",
            mode='lines+markers',  # Keep markers, remove text
-           line=dict(color=COLORS['Covid to Present (2020-2024)'])
+           line=dict(color=COLORS['Post-Crisis (2010-2020)'])
        ),
        secondary_y=True
    )
@@ -253,8 +313,16 @@ def plot_time_series(df):
    # Update layout with axis titles
    fig.update_layout(
        xaxis_title="Year",
-       yaxis_title="Option-Adjusted Spread (basis points)",
-       yaxis2_title="Delinquency Rate (%)"
+       yaxis_title="Option-Adjusted Spread",
+       yaxis2_title="Delinquency Rate (%)",
+        legend=dict(
+            title="Metric",
+            borderwidth=1,
+            bordercolor='#E5E5E5',
+            bgcolor='rgba(255, 255, 255, 0.9)',
+            x=0.02,
+            y=0.98
+        )
    )
 
    # Apply formatting
@@ -289,15 +357,6 @@ def apply_standard_formatting(fig, title, subtitle=None):
         height=600,
         margin=dict(t=100, l=80, r=40, b=80),
         
-        # Legend configuration
-        legend=dict(
-            title="Economic Period",
-            borderwidth=1,
-            bordercolor='#E5E5E5',
-            bgcolor='rgba(255, 255, 255, 0.9)',
-            x=0.02,
-            y=0.98
-        )
     )
     
     # Enhance axes styling
@@ -349,7 +408,7 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     
     pdf = FPDF()  # A4 (210 by 297 mm)
     WIDTH = 210
-    HEADER_PATH = r"C:\Users\mrasm\econ_indicator_analysis\report_header.png"
+    HEADER_PATH = r"./resources/report_header.png"
     ''' First Page '''
     pdf.add_page()
     pdf.image(HEADER_PATH, 0, 0, WIDTH)
@@ -361,7 +420,7 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     
     # Add plots to first page
     pdf.image("./tmp/stats_table.png", 5, 35, WIDTH)
-    pdf.image("./tmp/time_series_plot.png", 5, 140, WIDTH-10)
+    pdf.image("./tmp/time_series_plot.png", 5,140, WIDTH)
 
     ''' Second Page '''
     pdf.add_page()
@@ -371,7 +430,7 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     predictive_plot.write_image("./tmp/predictive_plot.png")
     
     # Add plots to second page
-    pdf.image("./tmp/current_plot.png", 5,10, WIDTH-20)
+    pdf.image("./tmp/current_plot.png", 5,10, WIDTH-10)
     pdf.image("./tmp/predictive_plot.png", 5, 140, WIDTH-10)
 
     # Save the PDF

@@ -86,7 +86,7 @@ def fill_missing_values(df):
     columns_to_fill = [
         'delinquency_rate_credit_cards',
         'quarterly_spread'
-    ] + [col for col in df.columns if 'm_forward' in col]
+    ]
     
     columns_to_fill = [col for col in columns_to_fill if col in df.columns]
     
