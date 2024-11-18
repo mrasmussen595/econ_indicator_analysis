@@ -1,13 +1,10 @@
 # visualizations.py
-import io
 import os
-from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from fpdf import FPDF, Template
-from PIL import Image
+from fpdf import FPDF
 from plotly.subplots import make_subplots
 
 from fred_config import COLORS
@@ -30,7 +27,7 @@ def fred_visualize(df):
     # Print key statistics
     print("Credit Risk Analysis Results:")
     # Create visualizations
-    stats_table = create_stats_table(df_viz) 
+    stats_table = create_stats_table(df_viz)
     current_plot = plot_current_relationship(df_viz)
     predictive_plot = plot_predictive_relationship(df_viz)
     time_series_plot = plot_time_series(df_viz)
@@ -64,21 +61,21 @@ def create_stats_table(df):
         {'name': 'Credit Spread Analysis', 'is_header': True},
         {'name': 'Average Option-Adjusted Spread', 'column': 'option_adjusted_spread', 'func': 'mean', 'format': '{:.0f} bps'},
         {'name': 'Spread Volatility (Std Dev)', 'column': 'option_adjusted_spread', 'func': 'std', 'format': '{:.0f} bps'},
-        
+
         {'name': 'Loan Performance Metrics', 'is_header': True},
         {'name': 'Average Delinquency Rate', 'column': 'delinquency_rate_loans', 'func': 'mean', 'format': '{:.2f}%'},
         {'name': 'Delinquency Volatility (Std Dev)', 'column': 'delinquency_rate_loans', 'func': 'std', 'format': '{:.2f}%'},
-        
+
         {'name': 'Predictive Relationships', 'is_header': True}
     ]
-    
+
     # Add simplified correlation metrics
     for months in [3, 6, 12]:
         period = 'Quarter' if months == 3 else 'Half-Year' if months == 6 else 'Year'
         metrics.extend([
-            {'name': f'{period} Forward Correlation', 'column': f'loan_delinq_{months}m_forward', 
+            {'name': f'{period} Forward Correlation', 'column': f'loan_delinq_{months}m_forward',
              'func': 'corr', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'},
-            {'name': f'{period} Forward R²', 'column': f'loan_delinq_{months}m_forward', 
+            {'name': f'{period} Forward R²', 'column': f'loan_delinq_{months}m_forward',
              'func': 'corr_squared', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'}
         ])
 
@@ -91,7 +88,7 @@ def create_stats_table(df):
             row = {'Metric': f'<b>{metric["name"]}</b>', **{regime: '' for regime in regimes}}
         else:
             row = {'Metric': f'  {metric["name"]}'}
-            
+
             for regime in regimes:
                 regime_data = df[df['economic_period'] == regime]
                 try:
@@ -99,13 +96,13 @@ def create_stats_table(df):
                         # Calculate correlation using the base column and target column
                         corr = regime_data[metric['base_column']].corr(regime_data[metric['column']])
                         row[regime] = format_correlation(corr, is_r_squared=False)
-                        
+
                     elif metric.get('func') == 'corr_squared':
                         # Calculate R² as the square of the correlation
                         corr = regime_data[metric['base_column']].corr(regime_data[metric['column']])
                         r_squared = corr ** 2
                         row[regime] = format_correlation(r_squared, is_r_squared=True)
-                        
+
                     else:
                         # Handle other statistics (mean, std, etc.)
                         value = getattr(regime_data[metric['column']], metric['func'])()
@@ -113,11 +110,11 @@ def create_stats_table(df):
                         if metric['column'] == 'option_adjusted_spread':
                             value = value * 100
                         row[regime] = metric['format'].format(value)
-                    
+
                 except Exception as e:
                     print(f"Error calculating {metric['name']} for {regime}: {str(e)}")
                     row[regime] = 'N/A'
-        
+
         results.append(row)
     fig = go.Figure(data=[go.Table(
             header=dict(
@@ -129,7 +126,7 @@ def create_stats_table(df):
                 line_color='#34495e'
             ),
             cells=dict(
-                values=[[row['Metric'] for row in results]] + 
+                values=[[row['Metric'] for row in results]] +
                     [[row[regime] for row in results] for regime in regimes],
                 font=dict(size=13, family='Arial'),
                 align=['left'] + ['center'] * len(regimes),
@@ -144,7 +141,7 @@ def create_stats_table(df):
         height=500,  # Specify overall figure height
         margin=dict(t=20, b=20))
  # Add some margin at top and bottom
-    
+
 
     fig.update_layout(
 
@@ -162,21 +159,21 @@ def create_stats_table(df):
     fig.add_annotation(
         text="Option-adjusted spreads vs corporate loan delinquency rate statistics by economic period",
         xref="paper",
-        yref="paper", 
+        yref="paper",
         x=0.5,
-        y=1.05,  
+        y=1.05,
         showarrow=False,
         font=dict(size=16),
         xanchor='center',
         yanchor='top',
-    ), 
+    ),
 
     fig.add_annotation(
         text="Option-Adjusted Spread: Measures spread between below-investment-grade bonds (BB and below) and Treasury curve",
         xref="paper",
-        yref="paper", 
+        yref="paper",
         x=0,
-        y=0.11, 
+        y=0.11,
         showarrow=False,
         font=dict(size=12),
         xanchor='left',
@@ -186,9 +183,9 @@ def create_stats_table(df):
     fig.add_annotation(
         text="Delinquency Rate on Business Loans: Percentage of business loans that are 30+ days past due measured across all US commercial banks",
         xref="paper",
-        yref="paper", 
+        yref="paper",
         x=0,
-        y=0.07,  
+        y=0.07,
         showarrow=False,
         font=dict(size=12),
         xanchor='left',
@@ -198,9 +195,9 @@ def create_stats_table(df):
     fig.add_annotation(
         text="Source: Federal Reserve Economic Data (FRED)",
         xref="paper",
-        yref="paper", 
+        yref="paper",
         x=0,
-        y=0.0001,  
+        y=0.0001,
         showarrow=False,
         font=dict(size=12),
         xanchor='left',
@@ -340,7 +337,7 @@ def apply_standard_formatting(fig, title, subtitle=None):
     full_title = title
     if subtitle:
         full_title += f'<br><span style="font-size: 14px">{subtitle}</span>'
-    
+
     fig.update_layout(
         # Title configuration
         title=dict(
@@ -356,9 +353,9 @@ def apply_standard_formatting(fig, title, subtitle=None):
         width=1000,
         height=600,
         margin=dict(t=100, l=80, r=40, b=80),
-        
+
     )
-    
+
     # Enhance axes styling
     for axis in [fig.update_xaxes, fig.update_yaxes]:
         axis(
@@ -370,7 +367,7 @@ def apply_standard_formatting(fig, title, subtitle=None):
             linewidth=2,
             linecolor='#2C3E50'
         )
-    
+
     # Style markers and trendline
     fig.update_traces(
         marker=dict(size=12, line=dict(width=1, color='white')),
@@ -380,7 +377,7 @@ def apply_standard_formatting(fig, title, subtitle=None):
         line=dict(width=2, dash='dot'),
         selector=dict(mode='lines')
     )
-    
+
     # Add source citation
     fig.add_annotation(
         text="Source: Federal Reserve Economic Data (FRED)",
@@ -389,12 +386,12 @@ def apply_standard_formatting(fig, title, subtitle=None):
         showarrow=False,
         font=dict(size=9, color='gray')
     )
-    
+
     return fig
 
 def create_title(pdf, title="FRED Economic Analysis"):
     # Add title
-    pdf.set_font('Arial', '', 24)  
+    pdf.set_font('Arial', '', 24)
     pdf.ln(60)
     pdf.write(5, title)
     pdf.ln(10)
@@ -405,7 +402,7 @@ def create_title(pdf, title="FRED Economic Analysis"):
 def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, filename="fred_analysis.pdf"):
     # Create tmp directory if it doesn't exist
     os.makedirs("./tmp", exist_ok=True)
-    
+
     pdf = FPDF()  # A4 (210 by 297 mm)
     WIDTH = 210
     HEADER_PATH = r"./resources/report_header.png"
@@ -413,22 +410,22 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     pdf.add_page()
     pdf.image(HEADER_PATH, 0, 0, WIDTH)
     create_title(pdf)
-    
+
     # Save plots as images
-    stats_table.write_image("./tmp/stats_table.png") 
+    stats_table.write_image("./tmp/stats_table.png")
     time_series_plot.write_image("./tmp/time_series_plot.png")
-    
+
     # Add plots to first page
     pdf.image("./tmp/stats_table.png", 5, 35, WIDTH)
     pdf.image("./tmp/time_series_plot.png", 5,140, WIDTH)
 
     ''' Second Page '''
     pdf.add_page()
-    
+
     # Save plots as images
     current_plot.write_image("./tmp/current_plot.png")
     predictive_plot.write_image("./tmp/predictive_plot.png")
-    
+
     # Add plots to second page
     pdf.image("./tmp/current_plot.png", 5,10, WIDTH-10)
     pdf.image("./tmp/predictive_plot.png", 5, 140, WIDTH-10)
@@ -442,7 +439,7 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
             os.remove(f"./tmp/{file}")
         except:
             pass
-    
+
     # Try to remove tmp directory if empty
     try:
         os.rmdir("./tmp")
