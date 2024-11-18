@@ -5,13 +5,20 @@ from fred_config import PERIODS
 
 
 def fred_transform(df, start_date):
-    # GDP calculation
-    df['gdp_growth'] = df['gdp'].pct_change(periods=4) * 100
     
     # Call fill missing value function
     df = fill_missing_values(df)
-    # df['option_adjusted_spread'] = (df['option_adjusted_spread'] *100).round()
     # Option-Adjusted Spread Calc: Average over each quarter
+
+    """
+    Snowflake SQL Equivalent:
+    SELECT 
+    *,
+    AVG(option_adjusted_spread) OVER (
+        PARTITION BY QUARTER(date)
+        ) as quarterly_spread
+    FROM df
+    )"""
     df['quarterly_spread'] = (df.groupby(df.index.to_period('Q'))['option_adjusted_spread'].transform('mean'))
     
     # Add forward-looking delinquency rates
@@ -39,7 +46,7 @@ def fred_transform(df, start_date):
 def classify_periods(df):
    #Label economic periods from config.py file
    """
-   SQL Equivalent:
+    Snowflake SQL Equivalent:
    SELECT *,
        CASE 
            WHEN date < '2008-01-01' THEN 'Pre-GFC'
@@ -60,7 +67,7 @@ def classify_periods(df):
 def fill_missing_values(df):
         # Fill down credit card delinquency data + loan delinquency data (only available quarterly) and spreads (averaging)
     """
-    SQL Equivalent:
+    Snowflake SQL Equivalent:
     with cte AS (
         SELECT
             date,
@@ -99,6 +106,13 @@ def fill_missing_values(df):
 def create_forward_metrics(df, metric_column, prefix, intervals=[3, 6, 9, 12, 18, 24]):
     """
     Create forward-looking values at specified monthly intervals for any metric
+
+    Snowflake SQL: 
+    Select 
+        LEAD(metric_value, interval) OVER (
+        PARTITION BY QUARTER(Date)
+        ORDER BY date DESC
+    ) as forward_metric,
     """
     for months in intervals:
         # Calculate the number of quarters to shift
