@@ -28,11 +28,11 @@ def fred_visualize(df):
     print("Credit Risk Analysis Results:")
     # Create visualizations
     stats_table = create_stats_table(df_viz)
-    current_plot = plot_current_relationship(df_viz)
-    predictive_plot = plot_predictive_relationship(df_viz)
+    covid_plot = plot_covid_relationship(df_viz)
+    pregfc_plot = plot_pregfc_relationship(df_viz)
     time_series_plot = plot_time_series(df_viz)
 
-    return stats_table,current_plot, predictive_plot, time_series_plot
+    return stats_table,covid_plot, pregfc_plot, time_series_plot
 
 def create_stats_table(df):
     """
@@ -140,8 +140,6 @@ def create_stats_table(df):
     fig.update_layout(
         height=500,  # Specify overall figure height
         margin=dict(t=20, b=20))
- # Add some margin at top and bottom
-
 
     fig.update_layout(
 
@@ -150,7 +148,7 @@ def create_stats_table(df):
         height=600,
         title=dict(
             text="Key Statistics Summary",
-            font=dict(size=24),
+            font=dict(size=28),
             x=0.5,  # Center the title
             y=0.95  # Reduced from 600
     ))
@@ -205,21 +203,22 @@ def create_stats_table(df):
     )
     return fig
 
-def plot_current_relationship(current_df):
+def plot_pregfc_relationship(current_df):
     """Create current analysis plot"""
-    correlation = current_df['option_adjusted_spread'].corr(current_df['delinquency_rate_loans'])
+    current_df = current_df[current_df['economic_period'] == 'Pre-GFC (1996-2007)']
+    correlation = current_df['option_adjusted_spread'].corr(current_df['loan_delinq_12m_forward'])
 
     fig = px.scatter(
         current_df,
         x='quarterly_spread',
-        y='delinquency_rate_loans',
+        y='loan_delinq_12m_forward',
         color='economic_period',
         trendline="ols",
         title='High Yield Spreads Predict Future Loan Delinquencies<br>' +
               f'<span style="font-size: 14px">Correlation: {correlation:.3f}</span>',
         labels={
-            'quarterly_spread': 'Average Quarterly Spread',
-            'delinquency_rate_loans': 'Current Quarter Delinquency Rate (%)',
+            'quarterly_spread': 'Average Quarterly Spread (%)',
+            'loan_delinq_12m_forward': 'Next Year Delinquency Rate (%)',
             'economic_period': 'Economic Period'
         }
     )
@@ -236,23 +235,24 @@ def plot_current_relationship(current_df):
         )
     )
 
-    apply_standard_formatting(fig, "Corporate Loan Risk Analysis", f"Delinquency Rate vs Option-Adjusted Spread (Correlation: {correlation:.3f})")
+    apply_standard_formatting(fig, "Pre-2008 Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates", f"Strong Predictive Relationship (ρ = {correlation:.3f})")
     return fig
 
-def plot_predictive_relationship(prediction_df):
+def plot_covid_relationship(prediction_df):
     """Create scatter plot of predictive relationship"""
-    correlation = prediction_df['option_adjusted_spread'].corr(prediction_df['loan_delinq_3m_forward'])
+    prediction_df = prediction_df[prediction_df['economic_period'] == 'Covid to Present (2020-2024)']
+    correlation = prediction_df['option_adjusted_spread'].corr(prediction_df['loan_delinq_12m_forward'])
 
     fig = px.scatter(
         prediction_df,
         x='quarterly_spread',
-        y='loan_delinq_3m_forward',
+        y='loan_delinq_12m_forward',
         color='economic_period',
         trendline="ols",
         title=f'Predictive Analysis (Correlation: {correlation:.3f})',
         labels={
-            'quarterly_spread': 'Average Quarterly Spread',
-            'loan_delinq_3m_forward': 'Next Quarter Delinquency Rate (%)',
+            'quarterly_spread': 'Average Quarterly Spread (%)',
+            'loan_delinq_12m_forward': 'Next Year Delinquency Rate (%)',
             'economic_period': 'Economic Period'
         }
     )
@@ -269,7 +269,7 @@ def plot_predictive_relationship(prediction_df):
         )
     )
 
-    apply_standard_formatting(fig, "Predictive Risk Analysis", f"Next Quarter's Delinquency Rate vs Current Option-Adjusted Spread (Correlation: {correlation:.3f})")
+    apply_standard_formatting(fig, "Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates (2020-2024)", f" Correlation Analysis Shows Weakened Predictive Relationship (Correlation: {correlation:.3f})")
     return fig
 
 def plot_time_series(df):
@@ -427,8 +427,8 @@ def fred_export(stats_table, current_plot, predictive_plot, time_series_plot, fi
     predictive_plot.write_image("./tmp/predictive_plot.png")
 
     # Add plots to second page
-    pdf.image("./tmp/current_plot.png", 5,10, WIDTH-10)
-    pdf.image("./tmp/predictive_plot.png", 5, 140, WIDTH-10)
+    pdf.image("./tmp/current_plot.png", 5,140, WIDTH-10)
+    pdf.image("./tmp/predictive_plot.png", 5, 10, WIDTH-10)
 
     # Save the PDF
     pdf.output(filename)

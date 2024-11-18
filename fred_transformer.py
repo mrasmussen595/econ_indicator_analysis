@@ -35,14 +35,14 @@ def fred_transform(df, start_date):
     # Add period classifications
     df = classify_periods(df)
 
+    #Get start date for more granular analysis
     start_date = pd.to_datetime(start_date)
-    # Since date is the index, filter using the index directly
     df = df[df.index >= start_date]
 
     return df
 
 def classify_periods(df):
-   #Label economic periods from config.py file
+   #Label economic periods
    """
     Snowflake SQL Equivalent:
    SELECT *,
@@ -86,10 +86,9 @@ def fill_missing_values(df):
     """
     df = df.sort_index(ascending=False)
 
-    df['option_adjusted_spread'] = df['option_adjusted_spread'].ffill()
-
     columns_to_fill = [
         'delinquency_rate_credit_cards',
+        'option_adjusted_spread',
         'quarterly_spread'
     ]
 

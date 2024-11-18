@@ -60,14 +60,6 @@ INDICATORS = {
    
 }
 
-# Important economic periods to highlight
-PERIODS = {
-    'Pre-GFC (1996-2007)': ('1996-12-31', '2007-10-01'),
-    'Great Recession (2008-2010)': ('2007-10-01', '2009-06-30'),
-    'Post-Crisis (2010-2020)': ('2009-06-30', '2020-01-01'),
-    'Covid to Present (2020-2024)': ('2020-01-01', None)
-}
-
 # Colors for visualizations
 COLORS = {
    'Pre-GFC (1996-2007)': '#0081AF',    # Blue
