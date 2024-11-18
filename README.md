@@ -79,7 +79,7 @@ econ_indicator_analysis/
 
 ## 💻 Usage
 
-1. Configure your FRED API settings in `fred_config.py`
+1. Configure economic indicators desired and observation start date in `fred_config.py`
 
 2. For interactive analysis, open `analysis.ipynb` in Jupyter Notebook:
 ```bash
