@@ -119,16 +119,16 @@ df.to_excel('stats.xlsx')
 ### Visualization and Export
 ```python
 # Generate visualizations
-stats_table, current_plot, predictive_plot, time_series_plot = fred_visualize(df)
+stats_table, covid_plot, pregfc_plot, time_series_plot = fred_visualize(df)
 
 # Display all visualizations
-stats_table.show()
-current_plot.show()
-predictive_plot.show()
-time_series_plot.show()
+stats_table.show() # Summary stats table
+covid_plot.show() # Built-in analysis of OAS vs Loan Delinquency indicators for covid to present (2020-2024)
+pregfc_plot.show() # Built-in analysis of OAS vs Loan Delinquency indicators for Pre-GFC (1996-2007)
+time_series_plot.show() # Time Series plot comparing two indicators
 
 # Export to PDF
-fred_export(stats_table, current_plot, predictive_plot, time_series_plot)
+fred_export(stats_table, covid_plot, pregfc_plot, time_series_plot)
 ```
 
 ## 📊 Example Outputs
@@ -137,8 +137,8 @@ The project generates various analyses and visualizations:
 - `stats.xlsx`: Excel file containing transformed data and statistical summaries
 - `fred_analysis.pdf`: PDF report containing:
   - Statistical summary table
-  - Current economic indicators plot
-  - Predictive analysis plot
+  - Scatterplot of OAS vs Loan Delinquency indicators for covid to present (2020-2024)
+  - Scatterplot of OAS vs Loan Delinquency indicators for Pre-GFC (1996-2007)
   - Time series analysis plot
 
 ## 📝 License
