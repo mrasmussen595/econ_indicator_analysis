@@ -73,7 +73,7 @@ def create_stats_table(df):
     for months in [3, 6, 12]:
         period = 'Quarter' if months == 3 else 'Half-Year' if months == 6 else 'Year'
         metrics.extend([
-            {'name': f'{period} Forward Correlation', 'column': f'loan_delinq_{months}m_forward',
+            {'name': f'{period} Forward Correlation (r)', 'column': f'loan_delinq_{months}m_forward',
              'func': 'corr', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'},
             {'name': f'{period} Forward R²', 'column': f'loan_delinq_{months}m_forward',
              'func': 'corr_squared', 'base_column': 'option_adjusted_spread', 'format': '{:.2f}'}
@@ -235,7 +235,7 @@ def plot_pregfc_relationship(current_df):
         )
     )
 
-    apply_standard_formatting(fig, "Pre-2008 Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates", f"Strong Predictive Relationship (ρ = {correlation:.3f})")
+    apply_standard_formatting(fig, "Pre-2008 Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates", f"Strong Predictive Relationship (r = {correlation:.3f})")
     return fig
 
 def plot_covid_relationship(prediction_df):
@@ -269,7 +269,7 @@ def plot_covid_relationship(prediction_df):
         )
     )
 
-    apply_standard_formatting(fig, "Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates (2020-2024)", f" Correlation Analysis Shows Weakened Predictive Relationship (Correlation: {correlation:.3f})")
+    apply_standard_formatting(fig, "Credit Risk Dynamics: OAS as Leading Indicator of Delinquency Rates (2020-2024)", f" Correlation Analysis Shows Weakened Predictive Relationship (r = {correlation:.3f})")
     return fig
 
 def plot_time_series(df):
