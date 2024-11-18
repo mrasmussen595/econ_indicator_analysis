@@ -6,6 +6,29 @@ A Python-based tool for fetching, transforming, and analyzing economic indicator
 
 This project provides a suite of tools for working with FRED economic data, including data loading, transformation, and visualization capabilities. It enables users to perform sophisticated analysis on economic indicators through a modular Python framework.
 
+## 🔑 Getting Started with FRED API
+
+Before using this tool, you'll need a FRED API key:
+
+1. Visit the [FRED API Documentation](https://fred.stlouisfed.org/docs/api/api_key.html)
+2. Log in or create a FRED account if you don't have one
+3. Navigate to [FRED API Keys](https://fredaccount.stlouisfed.org/apikeys)
+4. Click "Request API Key"
+5. Save your API key for use in the next steps
+
+> **Important**: 
+> - Each developer should request a distinct API key for each application they build
+> - Never share your API key or commit it to version control
+> - You cannot request or view API keys without first logging into your fredaccount.stlouisfed.org user account
+> - All web service requests require an API key to identify requests
+
+## 🔐 Setting Up Your API Key
+
+Create a `.env` file in the project root:
+```
+FRED_API_KEY=your_api_key_here
+```
+
 ## 🚀 Features
 
 - Automated FRED data fetching
