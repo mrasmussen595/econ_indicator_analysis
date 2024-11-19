@@ -41,7 +41,7 @@ FRED_API_KEY=your_api_key_here
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/econ_indicator_analysis.git
+git clone https://github.com/mrasmussen595/econ_indicator_analysis.git
 cd econ_indicator_analysis
 ```
 
